@@ -271,7 +271,6 @@
     </div>
   </div>
   <div class="header-right">
-    <div class="badge" id="statusBadge"><span class="dot" id="statusDot"></span><span id="statusText">checking backend…</span></div>
     <button class="ghost" id="clearBtn">Clear chat</button>
   </div>
 </header>
@@ -309,8 +308,6 @@ const examplesEl = document.getElementById("examples");
 const questionEl = document.getElementById("question");
 const sendBtn = document.getElementById("sendBtn");
 const clearBtn = document.getElementById("clearBtn");
-const statusDot = document.getElementById("statusDot");
-const statusText = document.getElementById("statusText");
 
 EXAMPLES.forEach((ex) => {
   const btn = document.createElement("button");
@@ -319,19 +316,6 @@ EXAMPLES.forEach((ex) => {
   btn.onclick = () => { questionEl.value = ex; send(); };
   examplesEl.appendChild(btn);
 });
-
-async function checkHealth() {
-  try {
-    const res = await fetch("/health");
-    if (!res.ok) throw new Error();
-    statusDot.className = "dot ok";
-    statusText.textContent = "backend online";
-  } catch {
-    statusDot.className = "dot err";
-    statusText.textContent = "backend unreachable";
-  }
-}
-checkHealth();
 
 function autoResize() {
   questionEl.style.height = "auto";
