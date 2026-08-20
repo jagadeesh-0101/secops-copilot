@@ -1,34 +1,54 @@
 # SecOps Copilot
 
-A retrieval-augmented, tool-using AI assistant for security operations — built to be
-run, understood, and extended
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Built with OpenAI · Anthropic · Groq · Ollama](https://img.shields.io/badge/Built_with-OpenAI_·_Anthropic_·_Groq_·_Ollama-success.svg)
 
-It answers questions like *"a user entered their password on a phishing page, what do
-I do?"* by searching a local library of security runbooks, checking indicators of
-compromise against a threat-intel lookup, and reasoning step by step about which tool
-to call before giving a grounded, cited answer.
+I built SecOps Copilot as a retrieval-augmented, tool-using AI assistant for security operations. As a full-stack developer finishing my M.S. in Computer Science who previously worked as a SOC analyst at TPI Composites, I wanted to build something grounded in reality. It answers questions like *"a user entered their password on a phishing page, what do I do?"* by searching a local library of security runbooks, checking indicators of compromise against a threat-intel lookup, and reasoning step by step about which tool to call before giving a grounded, cited answer.
 
-## Why this project (and not a generic "chat with your PDFs" clone)
+## Table of Contents
+- [Why this project](#why-this-project-)
+- [Architecture](#architecture-)
+- [What it demonstrates](#what-it-demonstrates-)
+- [Setup](#setup-)
+- [Running this for $0](#running-this-for-0-)
+- [Using it](#using-it-)
+- [Running the eval suite](#running-the-eval-suite-)
+- [Extending this project](#extending-this-project-)
+- [Design decisions](#design-decisions-)
+- [Contributing](#contributing)
 
-This is deliberately built around a security-operations domain instead of a generic
-document type, because it's meant to be a genuine, defensible answer to "tell me about
-a project you built" in an interview — not a copy of the first RAG tutorial result.
-The five runbooks in `sample_docs/` are written to mirror real SOC workflows (SIEM
-alert triage, DLP incident handling, vulnerability management SLAs, phishing response,
-incident escalation) — the same kind of process documentation a real security
-operations analyst works from daily.
+## Why this project 🔍
 
-## What it demonstrates (and why each piece is here)
+I deliberately built this around a security-operations domain instead of a generic document type because I wanted a genuine, defensible project to talk about in interviews — not just a clone of a basic RAG tutorial. The five runbooks in `sample_docs/` mirror real SOC workflows (SIEM alert triage, DLP incident handling, vulnerability management SLAs, phishing response, incident escalation). This is exactly the kind of process documentation I worked from daily as an analyst at TPI Composites.
 
-| Skill | Where | Why it's here |
+## Architecture 🏗️
+
+```mermaid
+flowchart TD
+    U["User question"] --> A["Agent loop (max 5 steps)"]
+    A --> T{"Needs a tool?"}
+    T -->|"search_runbooks"| R["Chroma vector store<br/>(local runbooks)"]
+    T -->|"check_indicator"| I["Threat-intel lookup"]
+    T -->|"classify_severity"| S["Runbook severity policy"]
+    R --> A
+    I --> A
+    S --> A
+    T -->|"ready to answer"| L["LLM: OpenAI / Anthropic / Groq / Ollama"]
+    L --> F["Final answer, cited to source runbook"]
+```
+
+## What it demonstrates 🛠️
+
+| Skill | Where | Why I built it this way |
 |---|---|---|
-| RAG | `app/chunking.py`, `app/retriever.py` | Header-aware chunking (not naive fixed-size splitting) + a local Chroma vector store. Runs offline with zero API cost for embeddings. |
-| Tool-calling / agents | `app/tools.py`, `app/agent.py` | A bounded loop (max 5 steps) that lets the model decide which of three tools to call, executes them, and feeds results back in. Full trace of every tool call is kept, not just the final answer. |
-| Multi-provider LLM integration | `app/llm_client.py` | One interface, two backends (OpenAI and Anthropic tool-use APIs), because real job postings ask for either — and building the adapter is what actually teaches you how tool-calling works under the hood, instead of only ever seeing it through one SDK. |
-| Evaluation | `eval/golden_set.json`, `eval/run_eval.py` | The piece most self-taught AI projects skip. Two layers: free deterministic checks (right tools called? right facts present?) for fast regression testing, plus an optional LLM-as-judge pass for qualitative grading. |
-| Deployment | `app/api.py` | A FastAPI wrapper turning the agent into an actual HTTP service. |
+| RAG | `app/chunking.py`, `app/retriever.py` | Uses header-aware chunking (not naive fixed-size splitting) and a local Chroma vector store. Runs entirely offline with zero API cost for embeddings. |
+| Tool-calling / agents | `app/tools.py`, `app/agent.py` | A bounded loop (capped at 5 steps) letting the model decide which of three tools to call, feeding results back in. I capture the full trace, not just the final answer. |
+| Multi-provider LLM | `app/llm_client.py` | One interface routing to multiple backends (OpenAI, Anthropic, Groq, Ollama). Building this adapter taught me how tool-calling works under the hood across different provider specs. |
+| Evaluation | `eval/golden_set.json`, `eval/run_eval.py` | The piece most self-taught AI projects skip. I built two layers: free deterministic checks (right tools? right facts?) for fast regression testing, plus an optional LLM-as-judge pass. |
+| Deployment | `app/api.py` | A FastAPI wrapper converting the underlying agent functions into an asynchronous HTTP service. |
 
-## Setup
+## Setup ⚙️
 
 ```bash
 pip install -r requirements.txt
@@ -36,12 +56,9 @@ cp .env.example .env        # then fill in OPENAI_API_KEY or ANTHROPIC_API_KEY
 python ingest.py            # builds the local vector store from sample_docs/
 ```
 
-Ingestion needs no API key — it runs Chroma's local embedding model
-(all-MiniLM-L6-v2 via onnxruntime), which downloads once on first run. The LLM step
-(the actual agent reasoning and tool-calling) does need a real API key, since that
-part has to talk to OpenAI or Anthropic.
+Ingestion needs no API key — it runs Chroma's local embedding model (all-MiniLM-L6-v2 via onnxruntime), which downloads once on first run. The LLM step (the actual agent reasoning and tool-calling) does need a real API key, since that part has to talk to OpenAI or Anthropic.
 
-## Running this for $0
+## Running this for $0 💸
 
 You do not need a paid OpenAI or Anthropic key to use this project. `.env.example`
 has three ready-to-use options, fully documented inline -- uncomment whichever one
@@ -69,7 +86,7 @@ on a paid model, that's expected -- it's actually a good, honest thing to have
 noticed and be able to talk about (model choice is a real production tradeoff
 between cost and tool-selection reliability, not just a config value).
 
-## Using it
+## Using it 🚀
 
 ```bash
 # one-off question from the command line
@@ -81,7 +98,7 @@ curl -X POST localhost:8000/ask -H 'Content-Type: application/json' \
   -d '{"question": "how fast do we need to patch a critical CVE on an internet-facing server"}'
 ```
 
-## Running the eval suite
+## Running the eval suite 🧪
 
 ```bash
 python eval/run_eval.py            # fast, free, deterministic checks
@@ -90,31 +107,39 @@ python eval/run_eval.py --judge    # also scores each answer 1-5 with an LLM jud
 
 Results are also written to `eval/last_run_results.json` for inspection.
 
-## What I'd genuinely recommend extending next
+## Extending this project 💡
 
-Don't stop at "it runs" — a few natural next steps that would each teach you something
-real and give you more to talk about:
+Don't stop at "it runs" — here are a few natural next steps I'd genuinely recommend that will teach you something real and give you more to talk about:
 
-- **Swap in real API embeddings** (OpenAI `text-embedding-3-small`) instead of the
-  local model and compare retrieval quality on a few tricky queries. This is a real,
-  common production tradeoff (cost/latency vs. quality) worth being able to speak to
-  concretely instead of abstractly.
-- **Add a fourth tool** that does something you understand from your own SOC
-  background — e.g. a mock Splunk query tool. Writing the tool schema and the
-  dispatch logic yourself, end to end, is what makes this genuinely yours rather than
-  a template you filled in.
-- **Add reranking** to the retriever — right now it's a single dense-vector search;
-  a lot of production RAG systems add a reranking step after the initial retrieval to
-  improve precision on the top few results.
-- **Point it at real content.** Swap the sample runbooks for public material you can
-  legally use (NIST guides, MITRE ATT&CK summaries) or your own notes from the SOC
-  role, so what it answers is something you'd actually stand behind.
+- **Swap in real API embeddings** (OpenAI `text-embedding-3-small`) instead of the local model and compare retrieval quality on a few tricky queries. This is a real, common production tradeoff (cost/latency vs. quality) worth being able to speak to concretely instead of abstractly.
+- **Add a fourth tool** that does something you understand from your own SOC background — e.g. a mock Splunk query tool. Writing the tool schema and the dispatch logic yourself, end to end, is what makes this genuinely yours rather than a template you filled in.
+- **Add reranking** to the retriever — right now it's a single dense-vector search; a lot of production RAG systems add a reranking step after the initial retrieval to improve precision on the top few results.
+- **Point it at real content.** Swap the sample runbooks for public material you can legally use (NIST guides, MITRE ATT&CK summaries) or your own notes from the SOC role, so what it answers is something you'd actually stand behind.
 
-## An honest note on how to use this for job applications
+## Design decisions 🎯
 
-Read through every file before you put this on a resume or talk about it in an
-interview. The value of this project is that you can explain *why* it's built the way
-it is — the chunking strategy, the bounded agent loop, the two-layer eval approach —
-not just that it exists. If an interviewer asks "why did you cap the agent loop at 5
-steps" or "why two eval layers instead of one," you should be able to answer that in
-your own words, because you will get asked exactly that kind of question.
+A few choices worth explaining rather than leaving implicit:
+
+- **The agent loop caps at 5 steps.** Without a hard limit, a confused model could
+  loop indefinitely, calling tools without ever converging on an answer — and since
+  every tool call also means an LLM call, that's a real, unbounded cost. Five steps
+  is enough for any question this project's tools can actually answer; if it hits
+  the cap, the trace shows exactly what it was trying to do so the failure is
+  debuggable, not silent.
+- **Evaluation has two layers on purpose.** Deterministic checks (right tools called,
+  right facts present) are free and fast enough to run on every change. The optional
+  LLM-as-judge pass costs a little money and is non-deterministic, so it's reserved
+  for deeper review rather than every commit. Most self-taught RAG projects skip
+  evaluation entirely — this is meant to show it doesn't have to be expensive to do
+  at all.
+- **Local embeddings by default.** Ingestion runs Chroma's bundled model, no API key
+  or cost required. Swapping to an API embedding model (e.g. OpenAI's
+  `text-embedding-3-small`) is a reasonable upgrade path once retrieval quality
+  actually needs to improve — the local model is deliberately not the ceiling, just
+  a free starting point.
+
+## Contributing
+
+Issues and pull requests are welcome. If you extend this with a new tool or swap in
+a different retrieval strategy, a short note in the PR about why is appreciated —
+the goal of this project is to stay explainable, not just functional.
