@@ -1,0 +1,7 @@
+.env
+chroma_db/
+chroma_db_test/
+__pycache__/
+*.pyc
+eval/last_run_results.json
+.DS_Store

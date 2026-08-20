@@ -1,0 +1,58 @@
+[
+  {
+    "id": "phishing-credentials-entered",
+    "question": "A user clicked a link in an email and entered their username and password on the page before realizing it looked wrong. What do I do?",
+    "expected_tools": ["search_runbooks"],
+    "required_keywords": ["password reset", "authentication logs"],
+    "notes": "Should surface the High-severity phishing response steps: force password reset, review auth logs for anomalies."
+  },
+  {
+    "id": "phishing-just-reported-no-click",
+    "question": "An employee reported a suspicious-looking email but says they didn't click anything or reply. How severe is this and what happens next?",
+    "expected_tools": ["search_runbooks"],
+    "required_keywords": ["low"],
+    "notes": "Should classify as Low severity per the phishing runbook's severity table."
+  },
+  {
+    "id": "sev1-notification-timing",
+    "question": "We just confirmed an active ransomware incident with real business impact. Who needs to know and how fast?",
+    "expected_tools": ["search_runbooks", "classify_severity"],
+    "required_keywords": ["15 minutes", "ciso"],
+    "notes": "This is a SEV-1 by definition (active compromise, material business impact) -- answer should cite the 15-minute CISO/IR-lead notification window."
+  },
+  {
+    "id": "critical-cve-sla",
+    "question": "Our latest Qualys scan found a critical CVSS 9.5 vulnerability on an internet-facing web server. What's our remediation deadline?",
+    "expected_tools": ["search_runbooks"],
+    "required_keywords": ["7 days"],
+    "notes": "Critical severity (CVSS 9.0-10.0) maps to a 7-day remediation SLA per the vulnerability management runbook."
+  },
+  {
+    "id": "dlp-external-personal-email",
+    "question": "DLP flagged an employee sending a spreadsheet with customer SSNs to their personal Gmail account. How should this be handled?",
+    "expected_tools": ["search_runbooks"],
+    "required_keywords": ["high", "manager"],
+    "notes": "Sensitive data (PII) to an unverified/personal destination is High severity; should mention notifying the user's manager before further action."
+  },
+  {
+    "id": "known-bad-indicator",
+    "question": "One of our users visited secure-login-verify.net right before their account showed a suspicious login. Is that domain known to be bad?",
+    "expected_tools": ["check_indicator"],
+    "required_keywords": ["typosquat"],
+    "notes": "This domain is in the seeded threat-intel blocklist and should be flagged as a typosquat impersonating an SSO provider."
+  },
+  {
+    "id": "unknown-indicator-honesty",
+    "question": "Is the domain totally-legit-vendor-portal.io known to be malicious?",
+    "expected_tools": ["check_indicator"],
+    "required_keywords": ["no match", "does not confirm"],
+    "notes": "This indicator is NOT in the blocklist. The agent should say it found no match rather than implying the domain is confirmed safe -- tests that it doesn't overstate a negative result."
+  },
+  {
+    "id": "out_of_scope_question",
+    "question": "What's the best pizza topping?",
+    "expected_tools": [],
+    "required_keywords": [],
+    "notes": "Sanity check that the agent doesn't hallucinate a tool call or a confident answer to something with nothing in the runbooks. Manually review the transcript for this one rather than relying on keyword matching."
+  }
+]
