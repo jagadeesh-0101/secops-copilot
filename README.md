@@ -4,10 +4,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Built with OpenAI · Anthropic · Groq · Ollama](https://img.shields.io/badge/Built_with-OpenAI_·_Anthropic_·_Groq_·_Ollama-success.svg)
 
-I built SecOps Copilot as a retrieval-augmented, tool-using AI assistant for security operations. As a full-stack developer finishing my M.S. in Computer Science who previously worked as a SOC analyst at TPI Composites, I wanted to build something grounded in reality. It answers questions like *"a user entered their password on a phishing page, what do I do?"* by searching a local library of security runbooks, checking indicators of compromise against a threat-intel lookup, and reasoning step by step about which tool to call before giving a grounded, cited answer.
+SecOps Copilot is an open-source, retrieval-augmented AI assistant for security operations. It answers questions like *"a user entered their password on a phishing page, what do I do?"* by searching a local library of security runbooks and reference material, checking indicators of compromise against a threat-intel lookup, and reasoning step by step about which tool to call before giving a grounded, cited answer. Clone it, point it at your own internal docs, and run it for your team.
 
 ## Table of Contents
-- [Why this project](#why-this-project-)
+- [Why security operations](#why-security-operations-)
 - [Architecture](#architecture-)
 - [What it demonstrates](#what-it-demonstrates-)
 - [Setup](#setup-)
@@ -18,9 +18,9 @@ I built SecOps Copilot as a retrieval-augmented, tool-using AI assistant for sec
 - [Design decisions](#design-decisions-)
 - [Contributing](#contributing)
 
-## Why this project 🔍
+## Why security operations 🔍
 
-I deliberately built this around a security-operations domain instead of a generic document type because I wanted a genuine, defensible project to talk about in interviews — not just a clone of a basic RAG tutorial. The five runbooks in `sample_docs/` mirror real SOC workflows (SIEM alert triage, DLP incident handling, vulnerability management SLAs, phishing response, incident escalation). This is exactly the kind of process documentation I worked from daily as an analyst at TPI Composites.
+Security operations was chosen deliberately over a generic "chat with your PDFs" domain because it has exactly the properties that make RAG + tool-calling worth demonstrating: clear structured workflows (severity tiers, SLAs, escalation paths), concrete factual lookups (indicator-of-compromise checks), and classification tasks with well-defined policies. The runbooks and reference material in `sample_docs/` mirror real SOC workflows — SIEM alert triage, DLP incident handling, vulnerability management SLAs, phishing response, incident escalation, plus broader security knowledge (OWASP Top 10, common attack types, security frameworks, cryptography, and network security fundamentals). This gives the agent real structure to reason over, not just freeform text to parrot back.
 
 ## Architecture 🏗️
 
@@ -46,13 +46,13 @@ flowchart TD
 
 ## What it demonstrates 🛠️
 
-| Skill | Where | Why I built it this way |
+| Skill | Where | How it works |
 |---|---|---|
-| RAG | `app/chunking.py`, `app/retriever.py` | Uses header-aware chunking (not naive fixed-size splitting) and a local Chroma vector store. Runs entirely offline with zero API cost for embeddings. |
-| Tool-calling / agents | `app/tools.py`, `app/agent.py` | A bounded loop (capped at 5 steps) letting the model decide which of three tools to call, feeding results back in. I capture the full trace, not just the final answer. |
-| Multi-provider LLM | `app/llm_client.py` | One interface routing to multiple backends (OpenAI, Anthropic, Groq, Ollama). Building this adapter taught me how tool-calling works under the hood across different provider specs. |
-| Evaluation | `eval/golden_set.json`, `eval/run_eval.py` | The piece most self-taught AI projects skip. I built two layers: free deterministic checks (right tools? right facts?) for fast regression testing, plus an optional LLM-as-judge pass. |
-| Deployment | `app/api.py` | A FastAPI wrapper converting the underlying agent functions into an asynchronous HTTP service. |
+| RAG | `app/chunking.py`, `app/retriever.py` | Header-aware chunking (not naive fixed-size splitting) and a local Chroma vector store. Runs entirely offline with zero API cost for embeddings. |
+| Tool-calling / agents | `app/tools.py`, `app/agent.py` | A bounded loop (capped at 5 steps) letting the model decide which of three tools to call, feeding results back in. The full trace is captured, not just the final answer. |
+| Multi-provider LLM | `app/llm_client.py` | One interface routing to multiple backends (OpenAI, Anthropic, Groq, Ollama) via a configurable `base_url`, so the same code path works with paid APIs, free tiers, and local models. |
+| Evaluation | `eval/golden_set.json`, `eval/run_eval.py` | Two layers: free deterministic checks (right tools called? right facts present?) for fast regression testing, plus an optional LLM-as-judge pass for deeper quality assessment. |
+| Deployment | `app/api.py` | A FastAPI wrapper converting the underlying agent functions into an asynchronous HTTP service with a built-in chat UI. |
 
 ## Setup ⚙️
 
@@ -115,12 +115,12 @@ Results are also written to `eval/last_run_results.json` for inspection.
 
 ## Extending this project 💡
 
-Don't stop at "it runs" — here are a few natural next steps I'd genuinely recommend that will teach you something real and give you more to talk about:
+A few natural next steps that add genuine value:
 
-- **Swap in real API embeddings** (OpenAI `text-embedding-3-small`) instead of the local model and compare retrieval quality on a few tricky queries. This is a real, common production tradeoff (cost/latency vs. quality) worth being able to speak to concretely instead of abstractly.
-- **Add a fourth tool** that does something you understand from your own SOC background — e.g. a mock Splunk query tool. Writing the tool schema and the dispatch logic yourself, end to end, is what makes this genuinely yours rather than a template you filled in.
-- **Add reranking** to the retriever — right now it's a single dense-vector search; a lot of production RAG systems add a reranking step after the initial retrieval to improve precision on the top few results.
-- **Point it at real content.** Swap the sample runbooks for public material you can legally use (NIST guides, MITRE ATT&CK summaries) or your own notes from the SOC role, so what it answers is something you'd actually stand behind.
+- **Swap in real API embeddings** (OpenAI `text-embedding-3-small`) instead of the local model and compare retrieval quality on tricky queries — a real production tradeoff (cost/latency vs. quality) worth understanding concretely.
+- **Add a fourth tool** — e.g. a mock Splunk query tool, a WHOIS lookup, or a CVE database check. Writing the tool schema and the dispatch logic end to end is what makes this genuinely yours.
+- **Add reranking** to the retriever — right now it's a single dense-vector search; production RAG systems often add a reranking step after initial retrieval to improve precision on the top results.
+- **Point it at your own content.** Swap the sample runbooks for your organization's actual internal docs, NIST guides, or MITRE ATT&CK summaries — anything you'd actually want grounded answers from.
 
 ## Design decisions 🎯
 
@@ -143,6 +143,13 @@ A few choices worth explaining rather than leaving implicit:
   `text-embedding-3-small`) is a reasonable upgrade path once retrieval quality
   actually needs to improve — the local model is deliberately not the ceiling, just
   a free starting point.
+- **Two-mode answers: grounded or labeled.** When the local knowledge base covers a
+  question, the agent answers from it and cites the source document. When the
+  knowledge base doesn't cover it (e.g. a general "what is a buffer overflow?"
+  question), the agent answers from its own general cybersecurity knowledge instead
+  of refusing — but explicitly labels the answer as general knowledge, not a cited
+  source. This makes the assistant broadly useful without ever letting a user mistake
+  an ungrounded answer for a cited one.
 
 ## Contributing
 
