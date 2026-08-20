@@ -14,6 +14,7 @@ import anthropic
 import openai
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 load_dotenv()
@@ -41,6 +42,7 @@ class AskResponse(BaseModel):
     answer: str
     tool_calls: list[ToolCallRecord]
     steps_used: int
+    model: str | None = None
 
 
 @app.get("/health")
@@ -59,8 +61,14 @@ async def ask(req: AskRequest):
         logger.exception("Unexpected error while handling /ask")
         raise HTTPException(status_code=500, detail=f"Internal server error: {type(e).__name__}: {e}")
 
+    provider = os.environ.get("LLM_PROVIDER", "openai")
+    model_name = os.environ.get("OPENAI_MODEL") if provider == "openai" else os.environ.get("ANTHROPIC_MODEL")
+
     return AskResponse(
         answer=result.answer,
         tool_calls=[ToolCallRecord(**tc) for tc in result.trace.tool_calls],
         steps_used=result.trace.steps_used,
+        model=model_name,
     )
+
+app.mount("/", StaticFiles(directory="static", html=True), name="static")

@@ -38,6 +38,12 @@ flowchart TD
     L --> F["Final answer, cited to source runbook"]
 ```
 
+## Screenshots
+
+![Empty state with example prompts](docs/screenshot-empty.png)
+
+![A real answer with the tool-call trace expanded](docs/screenshot-answer.png)
+
 ## What it demonstrates 🛠️
 
 | Skill | Where | Why I built it this way |

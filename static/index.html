@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecOps Copilot</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0d13;
+    --panel: #12161f;
+    --panel-2: #171c27;
+    --border: #232a38;
+    --text: #e6e9ef;
+    --muted: #8b93a7;
+    --accent: #4fd1c5;
+    --accent-dim: #16302d;
+    --user-bubble: #1c3a37;
+    --danger: #f47174;
+    --warn: #e0b04f;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--panel);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon {
+    width: 32px; height: 32px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .brand-title { font-size: 15px; font-weight: 600; }
+  .brand-sub { font-size: 11px; color: var(--muted); }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .badge {
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--accent); }
+  .dot.err { background: var(--danger); }
+  button.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button.ghost:hover { color: var(--text); border-color: var(--muted); }
+
+  main {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px 0;
+  }
+  .thread { width: 100%; max-width: 780px; display: flex; flex-direction: column; gap: 18px; padding-bottom: 24px; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    margin-top: 60px;
+  }
+  .empty-state h2 { color: var(--text); font-size: 18px; margin-bottom: 6px; }
+  .empty-state p { font-size: 13.5px; max-width: 440px; margin: 0 auto 22px; line-height: 1.5; }
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .example-btn {
+    background: var(--panel-2);
+    color: var(--accent);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+    max-width: 220px;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .example-btn:hover { border-color: var(--accent); }
+
+  .msg { display: flex; gap: 10px; }
+  .msg.user { justify-content: flex-end; }
+  .msg-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+    background: var(--panel-2); border: 1px solid var(--border);
+  }
+  .msg-body { max-width: 78%; }
+  .msg.user .msg-body {
+    background: var(--user-bubble);
+    border: 1px solid #234a45;
+    border-radius: 14px 14px 2px 14px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+  .msg.assistant .bubble {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px 14px 14px 2px;
+    padding: 14px 16px;
+  }
+  .msg.assistant .bubble.error { border-color: var(--danger); }
+  .answer-text { font-size: 14.5px; line-height: 1.6; }
+  .answer-text p:first-child { margin-top: 0; }
+  .answer-text p:last-child { margin-bottom: 0; }
+  .answer-text code { background: #0e1219; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+  .meta-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 10px; font-size: 11px; color: var(--muted);
+  }
+  .icon-btn {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 11px; padding: 2px 4px;
+  }
+  .icon-btn:hover { color: var(--accent); }
+
+  .trace {
+    margin-top: 10px;
+    border-top: 1px dashed var(--border);
+    padding-top: 10px;
+  }
+  .trace-toggle {
+    background: none; border: none; color: var(--muted);
+    font-size: 12px; cursor: pointer; padding: 0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .trace-toggle:hover { color: var(--text); }
+  .trace-list { margin-top: 8px; display: none; flex-direction: column; gap: 6px; }
+  .trace-list.open { display: flex; }
+  .tool-call {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+  .tool-name { color: var(--accent); font-weight: 600; }
+  .tool-input { color: var(--muted); margin-top: 3px; font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; word-break: break-word; }
+
+  .typing { display: flex; gap: 4px; padding: 4px 0; }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+
+  footer {
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 14px 16px;
+    display: flex;
+    justify-content: center;
+  }
+  .composer {
+    width: 100%; max-width: 780px;
+    display: flex; gap: 10px; align-items: flex-end;
+  }
+  textarea#question {
+    flex: 1;
+    background: #0e1219;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    max-height: 140px;
+  }
+  textarea#question:focus { outline: none; border-color: var(--accent); }
+  button.send {
+    background: var(--accent);
+    color: #05201d;
+    border: none;
+    border-radius: 10px;
+    padding: 0 20px;
+    height: 44px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  button.send:disabled { opacity: 0.4; cursor: default; }
+  .hint { text-align: center; font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">🛡️</div>
+    <div>
+      <div class="brand-title">SecOps Copilot</div>
+      <div class="brand-sub">RAG + tool-calling agent for security operations</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="badge" id="statusBadge"><span class="dot" id="statusDot"></span><span id="statusText">checking backend…</span></div>
+    <button class="ghost" id="clearBtn">Clear chat</button>
+  </div>
+</header>
+
+<main><div class="thread" id="thread">
+  <div class="empty-state" id="emptyState">
+    <h2>Ask it something a SOC analyst would actually ask</h2>
+    <p>It'll decide which tools to call — runbook search, indicator lookup, or severity policy — and cite what it used.</p>
+    <div class="examples" id="examples"></div>
+  </div>
+</div></main>
+
+<footer>
+  <div>
+    <div class="composer">
+      <textarea id="question" placeholder="Ask a security-operations question…" rows="1"></textarea>
+      <button class="send" id="sendBtn">Send</button>
+    </div>
+    <div class="hint">Enter to send · Shift+Enter for a new line</div>
+  </div>
+</footer>
+
+<script>
+const EXAMPLES = [
+  "A user entered their password on a phishing page — what do I do?",
+  "How fast do we need to patch a critical CVE on an internet-facing server?",
+  "Is secure-login-verify.net a known bad domain?",
+  "DLP flagged someone sending customer SSNs to their personal Gmail.",
+];
+
+const thread = document.getElementById("thread");
+const emptyState = document.getElementById("emptyState");
+const examplesEl = document.getElementById("examples");
+const questionEl = document.getElementById("question");
+const sendBtn = document.getElementById("sendBtn");
+const clearBtn = document.getElementById("clearBtn");
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
+
+let history = [];
+
+EXAMPLES.forEach((ex) => {
+  const btn = document.createElement("button");
+  btn.className = "example-btn";
+  btn.textContent = ex;
+  btn.onclick = () => { questionEl.value = ex; send(); };
+  examplesEl.appendChild(btn);
+});
+
+async function checkHealth() {
+  try {
+    const res = await fetch("/health");
+    if (!res.ok) throw new Error();
+    statusDot.className = "dot ok";
+    statusText.textContent = "backend online";
+  } catch {
+    statusDot.className = "dot err";
+    statusText.textContent = "backend unreachable";
+  }
+}
+checkHealth();
+
+function autoResize() {
+  questionEl.style.height = "auto";
+  questionEl.style.height = Math.min(questionEl.scrollHeight, 140) + "px";
+}
+questionEl.addEventListener("input", autoResize);
+questionEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+sendBtn.addEventListener("click", send);
+clearBtn.addEventListener("click", () => {
+  history = [];
+  thread.innerHTML = "";
+  thread.appendChild(emptyState);
+  emptyState.style.display = "block";
+});
+
+function addUserMessage(text) {
+  emptyState.style.display = "none";
+  const el = document.createElement("div");
+  el.className = "msg user";
+  el.innerHTML = `<div class="msg-body">${escapeHtml(text)}</div>`;
+  thread.appendChild(el);
+  scrollDown();
+}
+
+function addTypingIndicator() {
+  const el = document.createElement("div");
+  el.className = "msg assistant";
+  el.id = "typing-indicator";
+  el.innerHTML = `<div class="msg-avatar">🛡️</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  thread.appendChild(el);
+  scrollDown();
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById("typing-indicator");
+  if (el) el.remove();
+}
+
+function addAssistantMessage(data, elapsed) {
+  const el = document.createElement("div");
+  el.className = "msg assistant";
+  const rendered = window.marked ? marked.parse(data.answer) : escapeHtml(data.answer);
+
+  let traceHtml = "";
+  if (data.tool_calls && data.tool_calls.length > 0) {
+    traceHtml = `
+      <div class="trace">
+        <button class="trace-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+          ▸ ${data.tool_calls.length} tool call${data.tool_calls.length > 1 ? "s" : ""}
+        </button>
+        <div class="trace-list">
+          ${data.tool_calls.map(tc => `
+            <div class="tool-call">
+              <div class="tool-name">${escapeHtml(tc.name)}</div>
+              <div class="tool-input">${escapeHtml(JSON.stringify(tc.input))}</div>
+            </div>`).join("")}
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="msg-avatar">🛡️</div>
+    <div class="bubble">
+      <div class="answer-text">${rendered}</div>
+      ${traceHtml}
+      <div class="meta-row">
+        <span>${elapsed}s</span>
+        <span>·</span>
+        <span>${data.steps_used} step${data.steps_used > 1 ? "s" : ""}</span>
+        ${data.model ? `<span>·</span><span>${escapeHtml(data.model)}</span>` : ""}
+        <button class="icon-btn" onclick="copyAnswer(this)" data-text="${encodeURIComponent(data.answer)}">copy</button>
+      </div>
+    </div>`;
+  thread.appendChild(el);
+  scrollDown();
+}
+
+function addErrorMessage(message) {
+  const el = document.createElement("div");
+  el.className = "msg assistant";
+  el.innerHTML = `<div class="msg-avatar">⚠️</div><div class="bubble error"><span style="color: var(--danger)">${escapeHtml(message)}</span></div>`;
+  thread.appendChild(el);
+  scrollDown();
+}
+
+async function send() {
+  const question = questionEl.value.trim();
+  if (!question) return;
+
+  addUserMessage(question);
+  questionEl.value = "";
+  autoResize();
+  sendBtn.disabled = true;
+  addTypingIndicator();
+
+  const started = performance.now();
+  try {
+    const res = await fetch("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    removeTypingIndicator();
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `Request failed (${res.status})`);
+    }
+
+    const data = await res.json();
+    const elapsed = ((performance.now() - started) / 1000).toFixed(1);
+    addAssistantMessage(data, elapsed);
+  } catch (err) {
+    removeTypingIndicator();
+    addErrorMessage(err.message || "Something went wrong talking to the backend.");
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+function copyAnswer(btn) {
+  const text = decodeURIComponent(btn.dataset.text);
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = "copied";
+    setTimeout(() => { btn.textContent = original; }, 1200);
+  });
+}
+
+function scrollDown() {
+  requestAnimationFrame(() => { document.querySelector("main").scrollTop = document.querySelector("main").scrollHeight; });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
